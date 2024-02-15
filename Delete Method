@@ -1,0 +1,112 @@
+import sqlite3
+import hashlib
+from prettytable import PrettyTable
+
+class TeamMembers:
+    def __init__(self, userID, name, role, email, username, password, db_filename):
+        self.userID = userID
+        self.name = name
+        self.role = role
+        self.email = email
+        self.username = username
+        self.password = password
+        self.authenticated = False
+        self.db_filename = db_filename
+        self.columns = []  # To store column names
+        self.projects = []
+
+    def create_tables(self):
+        with sqlite3.connect(self.db_filename) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    userID INTEGER PRIMARY KEY,
+                    name TEXT,
+                    role TEXT,
+                    email TEXT,
+                    username TEXT,
+                    password TEXT
+                )
+            ''')
+
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS projects (
+                    projectID INTEGER PRIMARY KEY,
+                    projectName TEXT,
+                    task TEXT,
+                    taskDescription TEXT,
+                    userID INTEGER,
+                    username TEXT,
+                    role TEXT,
+                    email TEXT,
+                    status TEXT,
+                    percentage INTEGER,
+                    startDate TEXT,
+                    endDate TEXT,
+                    FOREIGN KEY(userID) REFERENCES users(userID)
+                )
+            ''')
+
+            conn.commit()
+
+    def hash_password(self, password):
+        return hashlib.sha256(str(password).encode()).hexdigest()
+
+    def register_user(self):
+        print("Enter user details:")
+        self.name = input("Name: ")
+        self.role = input("Role: ")
+        self.email = input("Email: ")
+        self.username = input("Username: ")
+        self.password = input("Password: ")
+
+        hashed_password = self.hash_password(self.password)
+
+        with sqlite3.connect(self.db_filename) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO users (name, role, email, username, password)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (self.name, self.role, self.email, self.username, hashed_password))
+            conn.commit()
+            print(f"User {self.username} registered successfully!")
+
+    # ... (other methods)
+
+    def delete_project(self, project_id):
+        with sqlite3.connect(self.db_filename) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM projects WHERE projectID = ?", (project_id,))
+            conn.commit()
+            print(f"Project with ProjectID {project_id} deleted successfully.")
+
+    def delete_user(self, user_id):
+        with sqlite3.connect(self.db_filename) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM users WHERE userID = ?", (user_id,))
+            conn.commit()
+            print(f"User with UserID {user_id} deleted successfully.")
+
+# Example usage
+if __name__ == "__main__":
+    db_filename = "wpm_database.db"
+
+    user1 = TeamMembers(
+        userID=1240,
+        name='Miroslava Ezel',
+        role='SuperAdmin',
+        email='n1161732@my.ntu.ac.uk',
+        username='mirkae',
+        password=2309,  # Replace with your actual password
+        db_filename=db_filename
+    )
+
+    user1.create_tables()
+
+    # Deleting a project
+    project_id_to_delete = input("Enter the ProjectID you want to delete: ")
+    user1.delete_project(project_id_to_delete)
+
+    # Deleting a user
+    user_id_to_delete = input("Enter the UserID you want to delete: ")
+    user1.delete_user(user_id_to_delete)
