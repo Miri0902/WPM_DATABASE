@@ -1,5 +1,5 @@
 import unittest
-from Error_handling import SuperAdmin, AddProject
+from WMS_submit import SuperAdmin, AddProject
 
 class TestSuperAdmin(unittest.TestCase):
     def setUp(self):
@@ -20,15 +20,15 @@ class TestSuperAdmin(unittest.TestCase):
         self.assertIsInstance(projects, list, "Fetch projects should return a list")
 
     def test_add_project(self):
-        # Assuming add_project method is present in your SuperAdmin class
-        projectName = "Mortgage"
+        # add_project method is present in SuperAdmin class
+        projectName = "Loans"
         task = "5"
         taskDescription = "Interest Review"
-        user = "Matt Damon"
-        userID = "mattd"
-        email = "matt.damon@ntu.ac.uk"
+        user = "Tom Becker"
+        userID = "9"
+        email = "n1161732@my.ntu.ac.uk"
         status = "In Progress"
-        percentage = 20
+        percentage = 35
         startDate = "01/01/2024"
         endDate = "01/02/2024"
 
@@ -54,14 +54,14 @@ class TestAddProject(unittest.TestCase):
         )
 
     def test_add_project(self):
-        projectName = "Mortgage"
+        projectName = "Loans"
         task = "5"
         taskDescription = "Interest Review"
         user = "Tom Becker"
         userID = "9"
         email = "n1161732@ntu.ac.uk"
         status = "In Progress"
-        percentage = 20
+        percentage = 35
         startDate = "01/01/2024"
         endDate = "01/02/2024"
 
