@@ -2,10 +2,19 @@ import sqlite3
 import hashlib
 from prettytable import PrettyTable
 import bcrypt
+import threading
+import time
 
 
 class Login:
+    """
+    Class representing team members.
+    """
     def __init__(self, db_filename):
+        """
+        Initialise a TeamMember instance.
+        :param db_filename: database name
+        """
         self.db_filename = db_filename
         self.authenticated = False
         self.userID = None
@@ -15,9 +24,20 @@ class Login:
         self.username = None
 
     def hash_password(self, password):
+        """
+        Hash the given password using SHA-256.
+        :param password:password to be hashed
+        :return:Hashed password
+        """
         return hashlib.sha256(str(password).encode()).hexdigest()
 
     def validate_input(self, prompt, allow_empty=False):
+        """
+        Validate user input.
+        :param prompt: Promt to display to the user.
+        :param allow_empty: Flag to allow empty input.
+        :return: Validated user input.
+        """
         while True:
             user_input = input(prompt).strip()
             if allow_empty or user_input:
@@ -27,6 +47,12 @@ class Login:
 
     #
     def login(self, enter_username, enter_password):
+        """
+        Attempt to log in with given username and password.
+        :param enter_username: Entered username.
+        :param enter_password: Entered password.
+        :return: True if login is succesfull, False if it is not.
+        """
         self.login_username = enter_username
         hashed_password = self.hash_password(enter_password)
 
@@ -36,11 +62,17 @@ class Login:
 
             user_data = cursor.fetchone()
 
+
+
         if user_data:
             self.authenticated = True
-            self.userID, self.user, self.role, self.email, self.username, _ = user_data
+            self.userID = user_data[0]
+            self.user = user_data[1]
+            self.role = user_data[2]
+            self.email = user_data[3]
+            self.username = user_data[4]
             print(f"Welcome, {self.username}!")
-            print(f"Logged in as: UserID={self.userID}, Role={self.role}")
+            print(f"Logged in as: UserID={self.userID}, Username={self.username}")
             return True
         else:
             self.authenticated = False
@@ -48,30 +80,26 @@ class Login:
             return False
 
 
-        # if user_data:
-        #     self.authenticated = True
-        #     self.userID = user_data[0]
-        #     self.user = user_data[1]
-        #     self.role = user_data[2]
-        #     self.email = user_data[3]
-        #     self.username = user_data[4]
-        #     print(f"Welcome, {self.username}!")
-        #     print(f"Logged in as: UserID={self.userID}, Username={self.username}")
-        #     return True
-        # else:
-        #     self.authenticated = False
-        #     print("Login failed. Please check your username and password.")
-        #     return False
-
-
 class WorkManagementSystem:
+    """
+     Class representing the Work Management System.
+
+    """
     def __init__(self, db_filename):
+        """
+        Initialises a WorkManagementSystem instance.
+        :param db_filename: The filename of the SQL database
+        """
         self.db_filename = db_filename
         self.login_instance = None
         self.team_members_instance = None
         self.superadmin_instance = None
 
     def start(self):
+        """
+        Initialises the Work Management System. Prompts the user to enter their username and password.
+        :return:
+        """
         print("Welcome to the Work Management System!")
         db_initialized = self.initialize_database()
 
@@ -107,6 +135,11 @@ class WorkManagementSystem:
 
 
     def initialize_database(self):
+        """
+        Initialises the SQLite database.
+        Creates 'users' and 'projects' tables if they don't exists.
+        :return: True if initialisation is successful, False otherwise.
+        """
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -145,7 +178,21 @@ class WorkManagementSystem:
 
 
 class TeamMembers:
+    """
+    Class representing team members in the Work Management System.
+    """
     def __init__(self, userID, user, role, email, username, password, db_filename):
+        """
+        Initialises a TeamMember instance.
+
+        :param userID: The user's ID.
+        :param user: The user's name.
+        :param role: The user's role.
+        :param email: The user's email.
+        :param username: The user's username.
+        :param password: The hashed password.
+        :param db_filename: The filename of the SQLite database.
+        """
         self.userID = userID
         self.user = user
         self.role = role
@@ -158,6 +205,10 @@ class TeamMembers:
         self.projects = []
 
     def create_tables(self):
+        """
+        Creates 'users' and 'projects' tables in the database.
+        :return:
+        """
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -193,9 +244,20 @@ class TeamMembers:
             conn.commit()
 
     def hash_password(self, password):
+        """
+        hashes the given password using SHA-256.
+        :param password: Str. The password to be hashed.
+        :return: The hashed password.
+        """
         return hashlib.sha256(str(password).encode()).hexdigest()
 
     def validate_input(self, prompt, allow_empty=False):
+        """
+        Validate the user input, prompting until a valid input is provided.
+        :param prompt: The input prompt.
+        :param allow_empty: Wheter empty input is allowed.
+        :return: Validated user input.
+        """
         while True:
             user_input = input(prompt).strip()
             if allow_empty or user_input:
@@ -204,10 +266,18 @@ class TeamMembers:
                 print("Input cannot be empty. Please enter a value.")
 
     def view_existing_projects(self):
+        """
+        Views existing projects by using the ViewExistingProject class.
+
+        """
         view_handler = ViewExistingProject(self.db_filename)
         view_handler.view_existing_project()
 
     def load_projects_from_db(self):
+        """
+        Loads project details  from database into the projects list.
+        :return:
+        """
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM projects")
@@ -230,6 +300,10 @@ class TeamMembers:
             return owner_id == self.userID
 
     def view_assigned_projects(self):
+        """
+        View projects assigned to the user.
+
+        """
         try:
             # Debugging statement
             print(f"Debug: UserID in view_assigned_projects: {self.userID}")
@@ -262,6 +336,9 @@ class TeamMembers:
 
 
     def display_projects(self, project_name=None):
+        """
+        Displays availabe projects.
+        """
         if self.authenticated:
             print('Available Projects:')
             if project_name:
@@ -317,63 +394,22 @@ class ViewUsers:
             print(table)
 
 
-# class UpdateExistingUsers:
-#     def __init__(self, db_filename):
-#         self.db_filename = db_filename
 #
-#     def update_existing_user(self):
-#
-#         while True:
-#             user_id_to_update = input("Enter the UserID of the user you want to update: ")
-#             user_to_update = input("Enter the username of the user you want to update:")
-#
-#             with sqlite3.connect(self.db_filename) as conn:
-#                 cursor = conn.cursor()
-#                 cursor.execute("SELECT * FROM users WHERE userID = ? AND user = ?", (user_id_to_update, user_to_update))
-#                 user_data = cursor.fetchone()
-#
-#                 if not user_data:
-#                     print(f"User with UserID {user_id_to_update}, username {user_to_update} role {user_to_update} and email {user_to_update} not found.")
-#                     break
-#
-#                 user_columns = [col[0] for col in cursor.description]
-#                 user = dict(zip(user_columns, user_data))
-#
-#                 print(f"Updating UserID {user_id_to_update} and username {user_to_update}:")
-#
-#                 # Display user details
-#                 columns_to_display = ["UserID", "User", "Role", "Email"]
-#                 table_to_display = PrettyTable(columns_to_display)
-#                 table_to_display.add_row([user.get(col, '') for col in columns_to_display])
-#                 print(table_to_display)
-#
-#                 columns_to_update = input("Enter the columns you want to update (comma-separated): ").split(',')
-#                 columns_to_update = [col.strip() for col in columns_to_update]
-#
-#                 for col in columns_to_update:
-#                     if col not in user_columns:
-#                         print(f"Invalid column '{col}'. Please choose from {', '.join(user_columns)}")
-#                         break
-#
-#                 for col in columns_to_update:
-#                     new_value = input(f"Enter new value for {col}: ").strip()
-#                     cursor.execute(f"UPDATE users SET {col} = ? WHERE userID = ? AND user = ?",
-#                                    (new_value, user_id_to_update, user_to_update))
-#                     conn.commit()
-#
-#                 #print(f"User details for UserID {user_id_to_update}, username {user_to_update}, role {user_idto_update}, email {user_id_to_update} updated successfully.")
-#                 print(
-#                     f"User details for UserID {user_id_to_update}, username {user_to_update}, role {user.get('role')}, email {user.get('email')} updated successfully.")
-#
-#             update_more_users = input("Do you want to update more users? (yes/no): ").lower()
-#             if update_more_users != 'yes':
-#                 break
-
 class UpdateExistingUsers:
+    """
+    Class for updating existing user details.
+    """
     def __init__(self, db_filename):
+        """
+        Initialises an UpdaeExistingUsers.
+        :param db_filename: The filename of the SQLite database.
+        """
         self.db_filename = db_filename
 
     def update_existing_user(self):
+        """
+        Allows updating user details in the 'users' table.
+        """
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
 
@@ -419,10 +455,22 @@ class UpdateExistingUsers:
 
 
 class RegisterUser:
+    """
+    Class for registering new users in the WMS.
+    """
     def __init__(self, db_filename):
+        """
+        Initialises a RegisterUser instance.
+        """
         self.db_filename = db_filename
 
     def validate_input(self, prompt, allow_empty=False):
+        """
+        Validates user input, prompting until a valid input is provided.
+        :param prompt: The input prompt.
+        :param allow_empty: Checks whether empty input is allowed.
+        :return: The validated user input.
+        """
         while True:
             user_input = input(prompt).strip()
             if allow_empty or user_input:
@@ -431,6 +479,9 @@ class RegisterUser:
                 print("Input cannot be empty. Please enter a value.")
 
     def execute(self):
+        """
+        Executes the user registration process.
+        """
         while True:
             print("Enter user details:")
             user = self.validate_input("User: ")
@@ -461,106 +512,198 @@ class RegisterUser:
             view_users_instance.view_users()
 
 
+
 class ViewExistingProject:
     def __init__(self, db_filename):
         self.db_filename = db_filename
 
     def view_existing_project(self):
-        with sqlite3.connect(self.db_filename) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT projectID, projectName, task, taskDescription, user, userID, role, email, status, percentage, startDate, endDate FROM projects")
-            user_data = cursor.fetchall()
+        # Fetch projects from the database
+        projects = self.fetch_projects()
 
-            if not user_data:
-                print("No projects found.")
-                return
+        # Multithreading to display projects concurrently
+        thread_count = 2  # Number of threads
+        threads = []
 
-            columns = ["projectID", "projectName", "task", "taskDescription", "user", "userID", "role", "email", "status", "percentage", "startDate", "endDate"]
-            table = PrettyTable(columns)
-            for user_data in user_data:
-                table.add_row(user_data)
+        # Split the projects into roughly equal parts for each thread
+        projects_per_thread = len(projects) // thread_count
 
-            print("Logged Projects in progress:")
-            print(table)
+        for i in range(thread_count):
+            start_index = i * projects_per_thread
+            end_index = (i + 1) * projects_per_thread if i < thread_count - 1 else len(projects)
+            thread = threading.Thread(target=self.display_projects, args=(projects[start_index:end_index],))
+            threads.append(thread)
 
-    def get_project_details(self, project_id):
-        with sqlite3.connect(self.db_filename) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM projects WHERE projectID = ?", (project_id,))
-            project_details = cursor.fetchone()
+        # Start all threads
+        for thread in threads:
+            thread.start()
 
-            return project_details
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()
+
+    def fetch_projects(self):
+
+
+        connection = sqlite3.connect(self.db_filename)
+        cursor = connection.cursor()
+
+        # Fetch projects
+        cursor.execute("SELECT ProjectID, ProjectName, Task, TaskDescription, User, UserID, Status, Percentage, StartDate, EndDate FROM projects")
+        projects = [
+            {
+                'ProjectID': row[0],
+                'ProjectName': row[1],
+                'Task': row[2],
+                'TaskDescription': row[3],
+                'User': row[4],
+                'UserID': row[5],
+                'Status': row[6],
+                'Percentage': row[7],
+                'StartDate': row[8],
+                'EndDate': row[9]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        connection.close()
+
+        return projects
+
+    def display_projects(self, projects):
+        # Display projects in a table
+        columns = ["ProjectID", "ProjectName", "Task", "TaskDescription", "User", "UserID", "Status", "Percentage", "StartDate", "EndDate"]
+        table = PrettyTable(columns)
+        for project in projects:
+            table.add_row([project[col] for col in columns])
+
+        print(table)
+
+
+
+
+
+# class ViewExistingProject:
+#     """
+#     Class for viewing existing project in the WMS.
+#
+#     Methods:
+#         view_existing_project(): Displays details of existing projects in a formatted table.
+#         get_project_details(project_id): Retrieves details of a specific project based on its projectID.
+#     """
+#     def __init__(self, db_filename):
+#         """
+#         Initialises a ViewExistingProject insance.
+#         """
+#         self.db_filename = db_filename
+#
+#     def view_existing_project(self):
+#         """
+#         Displays details of existing projects in a formatted table.
+#
+#         """
+#         with sqlite3.connect(self.db_filename) as conn:
+#             cursor = conn.cursor()
+#             cursor.execute("SELECT projectID, projectName, task, taskDescription, user, userID, role, email, status, percentage, startDate, endDate FROM projects")
+#             user_data = cursor.fetchall()
+#
+#             if not user_data:
+#                 print("No projects found.")
+#                 return
+#
+#             columns = ["projectID", "projectName", "task", "taskDescription", "user", "userID", "role", "email", "status", "percentage", "startDate", "endDate"]
+#             table = PrettyTable(columns)
+#             for user_data in user_data:
+#                 table.add_row(user_data)
+#
+#             print("Logged Projects in progress:")
+#             print(table)
+#
+#     def get_project_details(self, project_id):
+#         """
+#         Retrieves details of a specific project based  user's projectID.
+#         :param project_id: The projectID of the project to be retrieved.
+#         :return: Details of the project as a tuple.
+#         """
+#         with sqlite3.connect(self.db_filename) as conn:
+#             cursor = conn.cursor()
+#             cursor.execute("SELECT * FROM projects WHERE projectID = ?", (project_id,))
+#             project_details = cursor.fetchone()
+#
+#             return project_details
 
 class AddProject:
+    """
+    Class for adding new projects to the WMS.
+
+    Attributes:
+        role: string
+        email: string
+        db_filename: string
+    Methods:
+        validate_percentage(percentage): Validates whether the percentage is a valid integer between 0 and 100.
+        execute(projectname, task, taskdescription, user, userid, status, percentage, startDate, endDate):
+            Adds a new project to the 'projects' table based on user input.
+    """
     def __init__(self, db_filename, role, email):
+        """
+        Initialises an AddProject instance.
+        """
         self.db_filename = db_filename
         self.role = role
         self.email = email
 
     def validate_percentage(self, percentage):
+        """
+        Validates whether the percentage is a valid integer between 0 and 100.
+
+        Parameters:
+            percentage (str): The input string representing the project percentage.
+
+        Returns:
+            bool: True if the percentage is valid, False otherwise.
+        """
         return percentage.isdigit() and 0 <= int(percentage) <= 100
 
-        def execute(self, projectname, task, taskdescription, user, userid, status, percentage, startDate, endDate):
-            print("Enter project details:")
+    def execute(self, projectname, task, taskdescription, user, userid, status, percentage, startDate, endDate):
+        """
+        Adds a new project to the 'projects' table.
 
-            if not self.validate_percentage(percentage):
-                print("Invalid input. Percentage progress must be an integer between 0 and 100.")
+        """
+        print("Enter project details:")
+
+        if not self.validate_percentage(percentage):
+            print("Invalid input. Percentage progress must be an integer between 0 and 100.")
+            return
+
+        with sqlite3.connect(self.db_filename) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT role, email FROM users WHERE userID = ?", (userid,))
+            user_data = cursor.fetchone()
+
+            if not user_data:
+                print(f"User with UserID {userid} not found.")
                 return
 
-            with sqlite3.connect(self.db_filename) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT role, email FROM users WHERE userID = ?", (userid,))
-                user_data = cursor.fetchone()
+            user_role, user_email = user_data
 
-                if not user_data:
-                    print(f"User with UserID {userid} not found.")
-                    return
-
-                user_role, user_email = user_data
-
-                if user_role == 'SuperAdmin':
-                    cursor.execute('''
-                        INSERT INTO projects (projectName, task, taskDescription, user, userID, role, email, status, percentage, startDate, endDate)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (projectname, task, taskdescription, user, userid, user_role, user_email, status, percentage,
-                          startDate, endDate))
-                    conn.commit()
-                    print(f"Project '{projectname}' created successfully!")
-                    print(f"Email sent to '{user}' !")
-                else:
-                    print("You are not authorised to create a new project.")
-
-        # def execute(self, projectname, task, taskdescription, user, userid, role, email, status, percentage, startDate,
-    #             endDate):
-    #     print("Enter project details:")
-    #
-    #     if not self.validate_percentage(percentage):
-    #         print("Invalid input. Percentage progress must be an integer between 0 and 100.")
-    #         return
-    #
-    #     with sqlite3.connect(self.db_filename) as conn:
-    #         cursor = conn.cursor()
-    #         cursor.execute('''
-    #             INSERT INTO projects (projectName, task, taskDescription, user, userID, role, email, status, percentage, startDate, endDate)
-    #                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    #         ''', (projectname, task, taskdescription, user, userid, self.role, self.email, status, percentage,
-    #               startDate, endDate))
-    #         conn.commit()
-
-        # with sqlite3.connect(self.db_filename) as conn:
-        #     cursor = conn.cursor()
-        #     cursor.execute('''
-        #         INSERT INTO projects (projectName, task, taskDescription, user, userID, role, email, status, percentage, startDate, endDate)
-        #             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        #     ''', (
-        #     projectname, task, taskdescription, user, userid, role, email, status, percentage, startDate, endDate))
-        #     conn.commit()
-
-        print(f"Project '{projectname}' created successfully!")
-
-
+            if user_role == 'SuperAdmin':
+                cursor.execute('''
+                    INSERT INTO projects (projectName, task, taskDescription, user, userID, role, email, status, percentage, startDate, endDate)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (projectname, task, taskdescription, user, userid, user_role, user_email, status, percentage,
+                      startDate, endDate))
+                conn.commit()
+                print(f"Project '{projectname}' created successfully!")
+                print(f"Email sent to '{user}' !")
+            else:
+                print("You are not authorised to create a new project.")
 
     def load_projects_from_db(self):
+        """
+        Loads project from the SQLite database.
+
+        """
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM projects")
@@ -590,6 +733,9 @@ class AddProject:
 
 
 class UpdateProject:
+    """
+    Class for updating projects in the WMS.
+    """
     def __init__(self, user_instance, db_filename):
         self.user_instance = user_instance
         self.db_filename = db_filename
@@ -609,25 +755,6 @@ class UpdateProject:
                 print(f"Project with ProjectID {project_id} not found.")
                 return
 
-        # def update_project(self, project_id):
-    #     if not self.user_instance.authenticated:
-    #         print("You need to be logged in to update projects.")
-    #         return
-    #
-    #     with sqlite3.connect(self.db_filename) as conn:
-    #         cursor = conn.cursor()
-    #         if self.user_instance.role == 'SuperAdmin':
-    #             # SuperAdmin can update any project, no need to check userID
-    #             cursor.execute("SELECT * FROM projects WHERE projectID = ?", (project_id,))
-    #         else:
-    #             # Non-SuperAdmin should check if they are assigned to the project
-    #             cursor.execute("SELECT * FROM projects WHERE projectID = ? AND userID = ?",
-    #                             (project_id, self.user_instance.userID))
-    #         project_data = cursor.fetchone()
-    #
-    #         if not project_data:
-    #             print(f"You are not assigned to the project with ProjectID {project_id}.")
-    #             return
 
         project_columns = [col[0] for col in cursor.description]
         project = dict(zip(project_columns, project_data))
@@ -695,10 +822,17 @@ class UpdateProject:
 
 
 class SendEmail:
+    """
+    Class for sending email.
+    """
     def __init__(self, db_filename):
         self.db_filename = db_filename
 
     def send_and_display_notification(self, project_id, subject, body):
+        """
+        Sends and displays email notification to the user, according to the given project.
+
+        """
         user_email = self.get_user_email(project_id)
 
         if user_email:
@@ -713,6 +847,10 @@ class SendEmail:
             print("User email not found. Email notification not sent.")
 
     def get_user_email(self, project_id):
+        """
+        Retrieves sthe email of the user who is associated with the given project.
+
+        """
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
             user_email = cursor.execute("SELECT email FROM projects WHERE projectID = ?", (project_id,)).fetchone()
@@ -720,6 +858,10 @@ class SendEmail:
         return user_email[0] if user_email else None
 
     def check_percentage_100(self, project_id):
+        """
+        Checks if the project percentage is 100.
+
+        """
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
             percentage = cursor.execute("SELECT percentage FROM projects WHERE projectID = ?", (project_id,)).fetchone()
@@ -727,19 +869,25 @@ class SendEmail:
         return percentage[0] == 100 if percentage else False
 
     def send_email(self, to_email, subject, body):
-        # Original send_email functionality
-        # print(f"Simulating email notification to: {to_email}")
+        """
+        Sends an emaill to the specified email address.
+
+        """
+
         print(f"Subject: {subject}")
         print(f"Body: {body}")
 
 
-# class SuperAdmin(TeamMembers, Login, SendEmail):
-#     def __init__(self, userID, user, role, email, username, password, db_filename):
-#         super().__init__(userID, user, role, email, username, password, db_filename)
-#         self.password = self.hash_password(password)  # Hash the password
 
 class SuperAdmin(TeamMembers, Login, SendEmail, UpdateExistingUsers):
+    """
+    SuperAdmin class inheriting from TeamMembers, Login, SendEmail, UpdateExisitngUsers.
+    """
     def __init__(self, userID, user, role, email, username, password, db_filename):
+        """
+        Initialises a SuperAdmin instance.
+
+        """
         super().__init__(userID, user, role, email, username, password, db_filename)
         self.password = self.hash_password(password)  # Hash the password
         self.update_existing_users_instance = UpdateExistingUsers(db_filename)
@@ -756,7 +904,7 @@ class SuperAdmin(TeamMembers, Login, SendEmail, UpdateExistingUsers):
         self.username = self.validate_input("Username: ")
         self.password = self.validate_input("Password: ")
 
-        hashed_password = self.hash_password(self.password)
+        hashed_password = self.hash_password(self.password) # hass the password
 
         with sqlite3.connect(self.db_filename) as conn:
             cursor = conn.cursor()
@@ -768,29 +916,12 @@ class SuperAdmin(TeamMembers, Login, SendEmail, UpdateExistingUsers):
 
         print(f"User {self.user} registered successfully!")
 
-    # Override the register_user method to allow SuperAdmin to create new users
-    # def register_user(self):
-    #     print("Enter user details:")
-    #     self.user = self.validate_input("User: ")
-    #     self.role = self.validate_input("Role: ")
-    #     self.email = self.validate_input("Email: ")
-    #     self.username = self.validate_input("Username: ")
-    #     self.password = self.validate_input("Password: ")
-    #
-    #     hashed_password = self.hash_password(self.password)
-    #
-    #     with sqlite3.connect(self.db_filename) as conn:
-    #         cursor = conn.cursor()
-    #         cursor.execute('''
-    #             INSERT INTO users (User, role, email, username, password)
-    #             VALUES (?, ?, ?, ?, ?)
-    #         ''', (self.user, self.role, self.email, self.username, hashed_password))
-    #         conn.commit()
-    #
-    #     print(f"User {self.user} registered successfully!")
 
-    # Override the add_project method to allow SuperAdmin to create new projects
     def add_project(self, projectName, task, taskDescription, user, userID, email, status, percentage, startDate, endDate):
+        """
+        Add a new project for SuperAdmin.
+
+        """
         while True:
             if not self.authenticated or self.role != 'SuperAdmin':
                 print("You are not authorised to create a new project.")
@@ -839,11 +970,12 @@ class SuperAdmin(TeamMembers, Login, SendEmail, UpdateExistingUsers):
     def update_existing_user(self):
         self.update_existing_users_instance.update_existing_user()
 
-    # def update_existing_user(self):
-    #     # Call the parent class method
-    #     super().update_existing_user()
+
 
 class Admin(Login, SendEmail):
+    """
+    Admin class inheriting from Login and SendEmail.
+    """
     def __init__(self, userID, user, role, email, username, password, db_filename):
 
 
@@ -869,6 +1001,7 @@ class Admin(Login, SendEmail):
         print("3. Logout")
 
     def admin_actions(self, option):
+        # Perform Admin-specific action based on the selected option.
         if option == '1':
             to_email = input("Enter recipient's email addresses (comma-separated): ")
             to_email_list = [email.strip() for email in to_email.split(',')]  # Split into a list of emails
@@ -953,16 +1086,20 @@ class Admin(Login, SendEmail):
                 connection.close()
 
     def get_project_details(self, project_id):
-        # Replace this with your actual database query
+        """
+        Retrieve details of a project based on its projectID.
+
+        """
+
         query = f"SELECT projectID, projectName, task, taskDescription, user, userID, role, email, status, percentage, startDate, endDate FROM projects WHERE projectID = {project_id}"
 
 
         # Use self.execute_query(query) to execute the query
         project_details = self.execute_query(query)
 
-        # Check if project_details is not empty (adjust this based on your database interaction)
+        # Check if project_details is not empty
         if project_details:
-            # Assuming the query fetches only one project, convert it to a dictionary
+            #  convert project to a dictionary
             columns = ["projectID", "projectName", "task", "taskDescription", "user", "userID", "role", "email",
                        "status", "percentage", "startDate", "endDate"]
             project_dict = dict(zip(columns, project_details[0]))
@@ -974,6 +1111,10 @@ class Admin(Login, SendEmail):
 
 
     def generate_project_report(self, project_id):
+        """
+        Generate project report.
+
+        """
         project_details = self.get_project_details(project_id)
 
         if project_details:
@@ -991,7 +1132,7 @@ class Admin(Login, SendEmail):
     #
     def get_project_columns(self):
         # Retrieve column names from the projects table
-        query = "PRAGMA table_info(projects)"
+        query = "PRAGMA table_info(projects)" # A pragma used to retrieve information about columns in a table. It is SQLite command
         columns_info = self.execute_query(query)
 
         if columns_info:
@@ -1006,20 +1147,22 @@ class Admin(Login, SendEmail):
 
 
 if __name__ == "__main__":
+    # Set up the database filename
     db_filename = "wpm_database.db"
+    # Initialise the WorkManagementSystem
     project_management_system = WorkManagementSystem(db_filename)
 
-
+    # Create a SuperAdmin user for initialisation.
     user1 = SuperAdmin(
         userID=9,
         user='Tom Becker',
         role='SuperAdmin',
         email='n1161732@my.ntu.ac.uk',
         username='tomb',
-        password=123,  # Replace with your actual password
+        password=123,
         db_filename=db_filename
     )
-
+    # Create necessary tables
     user1.create_tables()
 
     # Login simulation loop
@@ -1029,12 +1172,15 @@ if __name__ == "__main__":
 
     while not login_success:
         # Login Simulation
-        print("Welcome to the Project Management System!")
+        print("Welcome to the Work Management System!")
         username_input = input('Enter your username: ')
         password_input = str(input('Enter your password: '))
 
+        # Check if login is successful
         if user1.login(username_input, password_input):
 
+
+            # Check user role and proceed according to the role
             if user1.role == 'Admin':
                 admin_user = Admin(
                     userID=user1.userID,
@@ -1056,7 +1202,7 @@ if __name__ == "__main__":
                 # Continue with SuperAdmin actions
                 while True:
                     # SuperAdmin section
-                    print("Options:")
+                    print("SuperAdmin Options:")
                     print("1. View registered users")
                     print("2. Register a new user")
                     print("3. Update an existing user")
@@ -1084,36 +1230,6 @@ if __name__ == "__main__":
                             "Do you want to update an existing user? (yes/no): ").lower()
                         if update_existing_user_option == 'yes':
                             user1.update_existing_user()
-
-
-                    # if option_superadmin == '1':
-                    #     # View registered users
-                    #     view_users_option = input("Do you want to view all registered users? (yes/no): ").lower()
-                    #     if view_users_option == 'yes':
-                    #         if user1.role == 'SuperAdmin':
-                    #             view_handler = ViewUsers(db_filename)
-                    #             view_handler.view_users()
-                    #         else:
-                    #             user1.view_users()
-                    #
-                    # elif option_superadmin == '2':
-                    #     # Register new user
-                    #     register_new_user = input("Do you want to register a new user? (yes/no): ").lower()
-                    #     if register_new_user == 'yes':
-                    #         user1.register_user()
-                    #
-                    # elif option_superadmin == '3':
-                    #     # Update existing user
-                    #     update_existing_user_option = input(
-                    #         "Do you want to update an existing user? (yes/no): ").lower()
-                    #     if update_existing_user_option == 'yes':
-                    #         if user1.role == 'SuperAdmin':
-                    #             update_handler = UpdateExistingUsers(db_filename)
-                    #             update_handler.update_existing_user()
-                    #         else:
-                    #             print("You are not authorized to update users.")
-
-
 
                     elif option_superadmin == '4':
                         # View existing projects
@@ -1180,7 +1296,7 @@ if __name__ == "__main__":
                 # Continue with TeamMember actions
                 while True:
                     # TeamMember section
-                    print("Options:")
+                    print("TeamMember Options:")
                     print("1. View assigned projects")
                     print("2. View existing projects")
                     print("3. Update project")
@@ -1243,6 +1359,7 @@ if __name__ == "__main__":
                         view_users_instance.view_users()
 
                     elif option_teammember == '5':
+                        # Close the script.
                         print('Closing the system')
                         break
                     else:
